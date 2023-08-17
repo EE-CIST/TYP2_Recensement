@@ -1,0 +1,569 @@
+---
+title: "[Exercices] **Données de recensement**"
+subtitle: "Du chargement des données à de premières analyses exploratoires"
+date: "2023-06-30"
+author: "**Pierre Pistre (avec l'appui de Mouftaou Amadou Sanni et Claude Grasland)**"
+abstract: "Deuxième partie du module 'Données de recensement' de l'Ecole d'Eté 2023 du CIST, ce support de formation a pour objectif la **prise en main en trois temps de données individuelles du recensement de la population** (importation, préparation, utilisation) à partir de données diffusées par **IPUMS International** sur l'exemple principal du recensement 2013 du Bénin."
+format:
+  html:
+    theme: lumen
+    toc: true
+    toc-location: left
+    toc-title: Mise en pratique
+    number-depth: 3
+    embed-resources: true
+editor: visual
+---
+
+### Préambules
+
+##### *a) Rappels de cours* :
+
+-   *Les recensements de la population sont réalisés à l'échelle nationale par les offices statistiques officiels (ex. l'INSTAD pour le Bénin et l'INSEE pour la France).*
+
+-   *Tous les pays ne disposent pas de données (actualisées) de recensement en raison notamment du coût de production et de la lourdeur de la méthodologie. Les temporalités sont par ailleurs spécifiques à chaque pays (ex. environ tous les 10 ans au Bénin et tous les cinq ans en France à partir d'enquêtes annuelles).*
+
+-   *Même si différentes institutions (ONU, Eurostat...) et conventions internationales cherchent à harmoniser les questionnaires de recensement, leur contenu et leur mise en oeuvre restent spécifiques à chaque pays.*
+
+##### [*b) IPUMS International*](https://international.ipums.org/international/) :
+
+*Le présent document de formation utilise des données fournies par IPUMS International, projet ayant pour objectif de **faciliter l'exploitation scientifique des données du recensement de la population dans une perspective notamment internationale**. Les intérêts du projet IPUMS sont nombreux : centralisation de l'accès à des données individuelles de recensement, interface de sélection des pays-millésimes-variables et taille d'échantillons, travail d'harmonisation des variables, etc.*
+
+![*Figure 1 : Accroche du site IPUMS International, rubrique "Micro-données de recensement"*](Figures/Fig1_Page1_IPUMS_International_Census.png)
+
+*A titre d'exemple, IPUMS International diffusent les millésimes de recensement suivants pour les pays des membres de l'Ecole d'Ete du CIST à Ouidah en février-mars 2023 (le Niger et la Côte d'Ivoire ne sont pas couverts par les données diffusées, même si ces pays disposent de recensements plus ou moins anciens) :*
+
+-   *Bénin : 1979, 1992, 2002, 2013.*
+
+-   *Burkina Faso : 1985, 1996, 2006.*
+
+-   *France : 1968, 1975, 1982, 1990, 1999, 2006, 2011.*
+
+-   *Mali : 1987, 1998, 2009.*
+
+-   *Sénégal : 1988, 2002, 2013.*
+
+-   *Togo : 1960, 1970, 2010.*
+
+##### *c) Applications avec R/RStudio* :
+
+Cette formation de prise en main de données de recensement - diffusées par IPUMS International (*cf.* partie 1) - est un document [**Quarto**](https://quarto.org/) produit avec R (version 4.3.1) et RStudio.
+
+Les extensions de R utilisées (*packages*) sont les suivantes :
+
+```{r packages, cache = T,warning=F}
+# Packages (chargement)
+library(tidyverse) # ensemble de packages (surtout pour manipuler des données (dplyr), ordonner des données (tidyr) et produire des représentations graphiques (ggplot2))
+library(ipumsr) # téléchargement des données IPUMS International
+library(haven) # gestion de l'importation de fichiers de formats différents
+library(DT) # visualisation interactive de tableaux
+```
+
+## 1. **Importation des données** (ex. Bénin, RP 2013 : IPUMS)
+
+Pour faciliter la présentation des **étapes de la procédure de téléchargement des données sur le site web d'IPUMS International**, puis leur **intégration dans R/R Studio**, ce document de formation présente la démarche pour le seul exemple du recensement 2013 du Bénin. Mais les procédures sont très largement équivalentes pour les autres pays ou millésimes, et l'interface de sélection est particulièrement bien configuré pour la commande simultanée de plusieurs recensements.
+
+### 1.1. [Conditions d'utilisation](https://international.ipums.org/international/terms.shtml) des données IPUMS
+
+La diffusion de données individuelles (ou micro-data) de recensement par IPUMS est possible grâce à la **mise à disposition des données par les offices statistiques nationaux** à condition de respecter les (principales) conditions d'utilisation suivantes :
+
+-   Utiliser les données uniquement pour la recherche et l'enseignement
+
+-   Ne pas redistribuer les commandes individuelles
+
+-   Ne pas identifier les individus recensés
+
+-   Mettre en oeuvre des mesures pour sécuriser l'accès aux données
+
+-   Citer systématiquement IPUMS International et les offices statistiques nationaux concernés
+
+-   Rapporter les erreurs constatées en analysant les données
+
+### 1.2. [Préparation et téléchargement des données sur le site IPUMS International](https://international.ipums.org/international/index.shtml)
+
+**ETAPE 1. Compte IPUMS** : création d'un compte individuel à partir de la [première page principale](https://international.ipums.org/international/index.shtml) et de l'onglet "Create an Account", puis en suivant la procédure sur la page "New IPUMS International Registration" :
+
+![*Figure 2 : Début du formulaire de création d'un compte individuel IPUMS International*](Figures/Fig2_IPUMS_International_Registration.png)
+
+**ETAPE 2. Sélection des pays et millésimes de recensement** : connexion à son compte individuel avec l'onglet "Log in" (en haut à droite), puis **début de la préparation de l'extraction des données par la sélection des pays et des millésimes de recensement** (*cf.* "SELECT DATA" \> "SELECT SAMPLES" \> Sélection manuelle des pays et des années de recensement \> "SUBMIT SAMPLE SELECTIONS") :
+
+![*Figure 3 : Sélection unique du RP 2013 du Bénin sur l'interface pays-millésimes*](Figures/Fig3_IPUMS_International_Select_Benin_2013.png)
+
+**ETAPE 3. Sélection des variables** : choisir d'abord si le téléchargement concerne des données telles que fournies par les offices statistiques nationaux (*cf.* "SOURCE VARIABLES") ou des **données harmonisées** telles que retravaillées par IPUMS International. Sélectionner ensuite les **variables d'intérêt dans les rubriques principales "Ménage"** (*cf.* "HOUSEHOLD") **et "Individu"** (*cf.* "PERSON") - ou par ordre alphabétique (*cf.* "A-Z") et en recherche libre (*cf.* "SEARCH").
+
+En prévision de la partie 2 sur la préparation de données d'exemple, puis d'exercices (partie 3) sur le sexe, l'âge, le lieu de résidence et le lieu de naissance des populations, nous choisissons ici à la fois des variables individus et ménages en cherchant dans les sous-rubriques "HOUSEHOLD" \> "GEOGRAPHY", "PERSON" \> DEMOGRAPHIC" et "PERSON" \> "NATIVITY AND BIRTHPLACE".
+
+**Au final, l'onglet "VIEW CART"** (en haut à droite) **permet de voir la sélection finale, y compris des variables présélectionnées qui sont indispensables pour l'exploitation des données** (notamment les pondérations, *cf.* partie 2) :
+
+![*Figure 4 : Bilan des variables sélectionnées pour le RP 2013 du Bénin*](Figures/Fig4_IPUMS_International_Select_variables.png){width="80%"}
+
+**ETAPE 4. Finalisation et soumission de la demande d''extraction** : après validation de la sélection des variables (*cf.* "CREATE DATA EXTRACT"), il reste **quelques options pour finaliser l'extraction** - comme le format des fichiers (*cf.* "DATA FORMAT" et "STRUCTURE" ; ici conservation des choix par défaut : .dat et Rectangular (person)), une option de filtres (*cf.* "SELECT CASES") ou d'enrichissement (*cf.* "ATTACH CHARACTERISTICS") des données -, **surtout la gestion de la taille de l'échantillon** (*cf.* "CUSTOMIZE SAMPLE SIZE). IPMUS International donne [accès à des échantillons de 1% à 10%](https://international.ipums.org/international-action/faq#ques39) des individus ou ménages des fichiers complets de recensement :
+
+![*Figure 5 : Interface de finalisation de l'extraction de données pour le RP 2013 du Bénin*](Figures/Fig5_IPUMS_International_Final_extraction.png)
+
+**ETAPE 5. Téléchargement des données** : après soumission, la demande est traitée par l'équipe d'IPUMS International - généralement (très) rapidement -, une notification est envoyée par mail et les données sont disponibles au téléchargement pendant 72h. **Deux fichiers doivent être téléchargés : les données** (*cf.* "DOWNLOAD.DAT") **et les metadonnées** (*cf.* "DDI", puis enregistrement en .xml) :
+
+![*Figure 6 : Interface de téléchargement pour les données du RP 2013 du Bénin*](Figures/Fig6_IPUMS_International_download.png)
+
+### 1.3. Intégration et sauvegarde dans l'environnement R/R Studio
+
+Après enregistrement des fichiers de données et metadonnées dans le dossier de travail, **le package ipumsr permet d'intégrer proprement et rapidement** - selon tout de même la taille des fichiers - **les données dans l'environnement R/R Studio** en utilisant les lignes de commande suvivantes. Nous proposons ensuite ici de sauvegarder le fichier de données (en .rds et en .csv) pour faciliter la réutilisation en partie 2 :
+
+```{r DataIPUMS_RDS, cache = T}
+## Chargement des données avec le package ipumsr (nom du fichier xml = numéro d'extraction sur la plateforme IPUMS)
+ddi <- read_ipums_ddi("Data/Data_brutes/ipumsi_00001.xml")
+data <- read_ipums_micro(ddi)
+
+## Sauvegarde en fichiers .rds et .csv
+saveRDS(data,"Data/Data_analyse/EECIST23_Recensement_TD_IPUMS_partie2_Benin2013.RDS")
+write.table(data, file ="Data/Data_analyse/EECIST23_Recensement_TD_IPUMS_partie2_Benin2013.csv",
+            quote = TRUE, sep = ";",dec = ".", row.names = F,
+            col.names = TRUE, fileEncoding = "UTF8")  
+```
+
+## 2. **Préparation des données** (ex. Bénin, RP 2013 : IPUMS & E-Geopolis)
+
+Après le téléchargement des données sur le site d'IPUMS International, puis leur intégration dans l'environnement de R/R Studio, cette deuxième partie a **pour objectif la préparation de données structurelles de population et de données de flux sur les migrations**. Les manipulations présentées (sélection et création de variables, agrégation géographique...) reposent **sur l'extraction de données réalisée dans la partie 1** (*CETTE ETAPE EST INDISPENSABLE POUR EXECUTER LES SCRIPTS DE LA PARTIE 2*), **et l'ajout de quelques données du projet [e-geopolis](http://e-geopolis.org/)**.
+
+```{r chargements,cache=T,comment=F}
+## RDS : chargement de la sauvegarde et conversion du fichier de données en data.frame avec le package haven
+RPBenin2013_IPUMS_data <- readRDS("Data/Data_analyse/EECIST23_Recensement_TD_IPUMS_partie2_Benin2013.RDS")
+RPBenin2013_IPUMS_data <- as_factor(RPBenin2013_IPUMS_data, only_labelled=T)
+RPBenin2013_IPUMS_data<- as.data.frame(RPBenin2013_IPUMS_data)
+
+## CSV : chargement de la sauvegarde (mais attention sans formats pour les modalités des variables qualitatives)
+# RPBenin2013_IPUMS_data <- read.csv(file ="Data/Data_analyse/EECIST23_Recensement_TD_IPUMS_partie2_Benin2013.csv",header = TRUE,sep = ";",dec = ".",encoding = "UTF8")
+```
+
+### 2.1. Données structurelles de population (totales, et selon le sexe, l'âge, l'espace de résidence)
+
+Premières manipulations pour **produire un jeu de données élémentaire sur les populations** qui servira de source pour les exercices de la partie 3. Les **traitements** sont **réalisés sur le seul exemple du recensement 2013 du Bénin** (*cf.* extraction IPUMS de la partie 1) ; l'exemple béninois sera complété par d'autres cas de pays dans la partie suivante mais le modèle de préparation des données est identique.
+
+La préparation est réalisée avec le **package dplyr**. Les principales opérations sont les suivantes : (1) **sélection** des variables utiles ; (2) **création** de variables d'analyse ; (3) **agrégation** géographique des résultats (à l'échelle du pays).
+
+```{r prepa_JdD1_princ, cache=T,comment=F}
+## Préparation du premier jeu de données (exemple du RP 2013 du Bénin)
+RPBenin2013_IPUMS_pays <- RPBenin2013_IPUMS_data %>% 
+  ## (1) [variables de contexte (pays, année) et d'analyse (pondération, sexe, age, urbain/rural)]
+  select(COUNTRY,YEAR,PERWT,HHWT,SEX,AGE,URBAN) %>% 
+  ## (2a) [création de nouvelles variables "boolénnes" pour chaque modalité des variables qualitatives (SEXE et URBAN) et affectation conditionnelle du poids de la pondération des individus ou des ménages]
+  mutate(POP_Total_IPUMS2010s = PERWT) %>% ## population totale = somme des poids de pondération de chaque individu
+  mutate(SEXE_Hom_IPUMS2010s = case_when(SEX %in% c("Male") ~ PERWT, !SEX %in% c("Male") ~ 0),
+         SEXE_Fem_IPUMS2010s = case_when(SEX %in% c("Female") ~ PERWT, !SEX %in% c("Female") ~ 0)) %>% 
+  mutate(POP_Urban_IPUMS2010s = case_when(URBAN %in% c("Urban") ~ HHWT, !URBAN %in% c("Urban") ~ 0),
+         POP_Rural_IPUMS2010s = case_when(URBAN %in% c("Rural") ~ HHWT, !URBAN %in% c("Rural") ~ 0),
+         POP_Unkwn_IPUMS2010s = case_when(URBAN %in% c("Unknown") ~ HHWT, !URBAN %in% c("Unknown") ~ 0)) %>% 
+   ## (2b) [création de six variables "boolénnes" avec la variable "quantitative" d'âge et affectation conditionnelle du poids de la pondération]
+  mutate(AGE = as.character(AGE),
+         AGEb = case_when(AGE %in% c("Less than 1 year") ~ "0",
+                          AGE %in% c("1 year") ~ "1",
+                          AGE %in% c("2 years") ~ "2",
+                          TRUE ~ AGE),
+         AGEb = as.numeric(AGEb),
+         AGE_0014_IPUMS2010s = case_when(AGEb < 15 ~ PERWT, !AGEb < 15 ~ 0),
+         AGE_1529_IPUMS2010s = case_when(AGEb >= 15 & AGEb < 30 ~ PERWT, !AGEb >= 15 & AGEb < 30  ~ 0),
+         AGE_3044_IPUMS2010s = case_when(AGEb >= 30 & AGEb < 45 ~ PERWT, !AGEb >= 30 & AGEb < 45  ~ 0),
+         AGE_4559_IPUMS2010s = case_when(AGEb >= 45 & AGEb < 60 ~ PERWT, !AGEb >= 45 & AGEb < 60  ~ 0),
+         AGE_6074_IPUMS2010s = case_when(AGEb >= 60 & AGEb < 75 ~ PERWT, !AGEb >= 60 & AGEb < 75  ~ 0),
+         AGE_75pl_IPUMS2010s = case_when(AGEb >= 75 ~ PERWT, !AGEb >= 75 ~ 0)) %>% 
+  ## (3) [agrégation géographique par somme en retirant au préalable les variables utilisées pour créer les nouvelles variables d'analyse]
+  select(-PERWT,-HHWT,-SEX,-AGE,-AGEb,-URBAN) %>% 
+  group_by(COUNTRY,YEAR) %>%
+  summarise_all(sum,na.rm=T)
+```
+
+En prévision d'un exercice dans la partie 3 sur le calcul de la densité de population, les lignes de codes suivantes permettent d'abord d'intégrer une **variable sur la superficie du pays** à partir d'une information déjà présente dans l'extraction de données IPUMS de la partie 1. Des données complémentaires du projet **e-geopolis sur les populations urbaines et rurales** sont également ajoutées en prévision d'un autre exercice.
+
+```{r JdD1_surf, cache=T,comment=F}
+## Préparation et ajout d'une variable "Superficie" en km2 
+RPBenin2013_IPUMS_pays_superf <- RPBenin2013_IPUMS_data %>% 
+  select(COUNTRY,AREAMOLLWGEO1) %>% 
+  distinct() %>% 
+  group_by(COUNTRY) %>% 
+  summarise_all(sum) %>% 
+  rename(SUPERF_km2_IPUMS = AREAMOLLWGEO1)
+## Intégration dans le tableau de données principal
+RPBenin2013_IPUMS_pays_vf <-  merge(x = RPBenin2013_IPUMS_pays, y = RPBenin2013_IPUMS_pays_superf, by.x = "COUNTRY", by.y = "COUNTRY")
+
+## Ajout manuel d'informations sur les populations urbaines et rurales tirées de e-geopolis pour la décennie 2010 (= 2015)
+RPBenin2013_IPUMS_pays_vf <- RPBenin2013_IPUMS_pays_vf %>% 
+  mutate(POP_Urban_GEOPOLIS2010s = 5272300,
+         POP_Rural_GEOPOLIS2010s = 5477200)
+```
+
+Pour finir, **sauvegarde du jeu de données structurelles** et aperçu du tableau.
+
+```{r visu_JdD1_princ, cache=T,comment=F}
+## Sauvegarde au format RDS pour la partie 3
+saveRDS(RPBenin2013_IPUMS_pays_vf,"Data/Data_analyse/EECIST23_Recensement_TD_IPUMS_partie3_JdD1_Benin2013.RDS")
+
+## Visualisation interactive du tableau de résultats (ici une seule ligne pour le Bénin au RP2013)
+datatable(RPBenin2013_IPUMS_pays_vf)
+```
+
+### 2.2. Données migratoires de flux (totales, et selon le sexe, l'âge)
+
+Les manipulations suivantes sont proches des précédentes mais l'objectif général diffère : **produire un deuxième jeu de données de flux sur l'exemple du Bénin (RP 2013)**, qui sera également utilisé dans la partie 3. Plus précisément, les recensements collectent - de manière inégale selon les pays - des informations sur plusieurs localisations géographiques (*cf.* lieu de résidence, lieu de résidence antérieure, lieu de travail, lieu de scolarisation, lieu de naissance). A partir des données IPUMS, la comparaison internationale est surtout possible pour les **migrations au cours de la vie**, c'est-à-dire **entre le lieu de résidence et le lieu de naissance**.
+
+Les traitements sont toujours réalisés avec le **package dplyr** en trois étapes : (1) **sélection** des variables utiles ; (2) **création** des variables d'analyse ; (3) **agrégation** géographique. Cette dernière étape est celle qui diffère le plus puisqu'il s'agit d'agréger les populations **selon des paires de départements de résidence et de naissance** du Bénin (y compris les migrations des personnes néés à l'étranger sans distinction de pays, *cf.* "Born Abroad").
+
+```{r prepa_JdD2, cache=T,comment=F}
+## Préparation du deuxième jeu de données (exemple du RP 2013 du Bénin)
+RPBenin2013_IPUMS_flux <- RPBenin2013_IPUMS_data %>% 
+  ## (1) [variables de contexte/géographiques (pays, année, départements de résidence et de naissance) et d'analyse (pondération, sexe, age, urbain/rural)]
+  select(COUNTRY,YEAR,GEOLEV1,BPLBJ1,PERWT,SEX,AGE) %>% 
+  ## (2a) [création de nouvelles variables "boolénnes" pour chaque modalité de la variable qualitative SEXE et affectation conditionnelle du poids de la pondération des individus ou des ménages]
+  mutate(POP_Total_IPUMS2010s = PERWT) %>% ## population totale = somme des poids de pondération de chaque individu
+  mutate(SEXE_Hom_IPUMS = case_when(SEX %in% c("Male") ~ PERWT, !SEX %in% c("Male") ~ 0),
+         SEXE_Fem_IPUMS = case_when(SEX %in% c("Female") ~ PERWT, !SEX %in% c("Female") ~ 0)) %>% 
+   ## (2b) [création de six variables "boolénnes" avec la variable "quantitative" d'âge et affectation conditionnelle du poids de la pondération]         
+  mutate(AGE = as.character(AGE),
+         AGEb = case_when(AGE %in% c("Less than 1 year") ~ "0",
+                          AGE %in% c("1 year") ~ "1",
+                          AGE %in% c("2 years") ~ "2",
+                          TRUE ~ AGE),
+         AGEb = as.numeric(AGEb),
+         AGE_0014_IPUMS = case_when(AGEb < 15 ~ PERWT, !AGEb < 15 ~ 0),
+         AGE_1529_IPUMS = case_when(AGEb >= 15 & AGEb < 30 ~ PERWT, !AGEb >= 15 & AGEb < 30  ~ 0),
+         AGE_3044_IPUMS = case_when(AGEb >= 30 & AGEb < 45 ~ PERWT, !AGEb >= 30 & AGEb < 45  ~ 0),
+         AGE_4559_IPUMS = case_when(AGEb >= 45 & AGEb < 60 ~ PERWT, !AGEb >= 45 & AGEb < 60  ~ 0),
+         AGE_6074_IPUMS = case_when(AGEb >= 60 & AGEb < 75 ~ PERWT, !AGEb >= 60 & AGEb < 75  ~ 0),
+         AGE_75pl_IPUMS = case_when(AGEb >= 75 ~ PERWT, !AGEb >= 75 ~ 0)) %>% 
+  ## (3) [agrégation géographique par somme en retirant au préalable les variables utilisées pour créer les nouvelles variables d'analyse]
+  select(-PERWT,-SEX,-AGE,-AGEb) %>% 
+  group_by(COUNTRY,YEAR,GEOLEV1,BPLBJ1) %>% 
+  summarise_all(sum,na.rm=T) %>% 
+  ungroup()
+
+## Remplacement manuel des codes géographiques par les intitulés des départements de résidence
+RPBenin2013_IPUMS_flux_vf <- RPBenin2013_IPUMS_flux %>% 
+  mutate(DEP_RESIDENCE = case_when(GEOLEV1 %in% c("204001") ~ "Alibori",
+                                   GEOLEV1 %in% c("204002") ~ "Atacora", 
+                                   GEOLEV1 %in% c("204003") ~ "Atlantique", 
+                                   GEOLEV1 %in% c("204004") ~ "Borgou", 
+                                   GEOLEV1 %in% c("204005") ~ "Collines", 
+                                   GEOLEV1 %in% c("204006") ~ "Couffo", 
+                                   GEOLEV1 %in% c("204007") ~ "Donga", 
+                                   GEOLEV1 %in% c("204008") ~ "Littoral", 
+                                   GEOLEV1 %in% c("204009") ~ "Mono", 
+                                   GEOLEV1 %in% c("204010") ~ "Oueme", 
+                                   GEOLEV1 %in% c("204011") ~ "Plateau", 
+                                   GEOLEV1 %in% c("204012") ~ "Zou")) %>% 
+  rename(DEP_NAISSANCE=BPLBJ1) %>% 
+  select(COUNTRY,YEAR,
+         DEP_RESIDENCE,DEP_NAISSANCE,
+         POP_Total_IPUMS2010s,SEXE_Hom_IPUMS,SEXE_Fem_IPUMS,
+         AGE_0014_IPUMS,AGE_1529_IPUMS,AGE_3044_IPUMS,AGE_4559_IPUMS,AGE_6074_IPUMS,AGE_75pl_IPUMS)
+```
+
+```{r visu_JdD2, cache=T,comment=F}
+## Sauvegarde au format RDS pour la partie 3
+saveRDS(RPBenin2013_IPUMS_flux_vf,"Data/Data_analyse/EECIST23_Recensement_TD_IPUMS_partie3_JdD2_Benin2013.RDS")
+
+## Visualisation interactive du tableau (pour le seul département de résidence de Alibori)
+RPBenin2013_IPUMS_flux_Alibori <- RPBenin2013_IPUMS_flux_vf %>% 
+  filter(DEP_RESIDENCE %in% c("Alibori"))
+datatable(RPBenin2013_IPUMS_flux_Alibori)
+```
+
+## 3. **Utilisation des données** (ex. pays africains IPUMS & France)
+
+Dans cette troisième partie, **l'objectif est de réaliser quelques analyses exploratoires sur des données structurelles et de flux de recensement**, à partir principalement de l'extraction de données d'IPUMS International présentée dans la partie 1 et des jeux de données agrégées produits dans la partie 2.
+
+*Les exercices prennent la forme de questions (cf. sous-titres), suivies de réponses/corrections sous la forme de lignes de codes qui produisent un tableau ou un graphique.*
+
+### **Données structurelles de population** (pays africains IPUMS + France, années 2000 et 2010)
+
+La première série d'exercices porte sur des données structurelles de population (cf. partie 2.1 sur le recensement 2013 du Bénin). Plus précisément, il s'agit d'utiliser un **tableau enrichi produit à partir des données de recensement de tous les pays africains et de la France qui sont diffusées par IPUMS International pour les années 2000 et 2010.** Au total, 28 pays du périmètre d'étude sont couverts par au moins un recensement lors de ces deux décennies.
+
+```{r Jd1_rds, cache=T,comment=F}
+## Fichier csv (sauvegarde)
+JdD1_Af_France_2000s_2010s <- read.csv(file ="Data/Data_analyse/JdD1_pays_Af_Fr_2000s_2010s_IPUMS_GEOPOLIS_data.csv",header = TRUE,sep = ",",dec = ".",encoding = "UTF8")
+
+## Visualisation des données manquantes (pays sans recensement au cours d'une décennie) à partir des variables de total de la population
+JdD1_pop_visu <- JdD1_Af_France_2000s_2010s %>% select(PAYS,POP_Total_IPUMS2000s,POP_Total_IPUMS2010s)
+datatable(JdD1_pop_visu)
+```
+
+### 3.1. "Quel pays a la plus forte densité de population dans les années 2000 ou 2010 ?" (IPUMS)
+
+\[Analyse\] Pour les décennies 2000 et 2010, selon les pays disponibles, l'analyse consiste à **calculer une variable de densité de population** à partir de la superficie des pays et de leur population totale, puis à ordonner les résultats.
+
+```{r ex3.1, cache=T,comment=F}
+## Création de deux variables de densité pour les décennies 2000 et 2010
+Exo3_1 <- JdD1_Af_France_2000s_2010s %>% 
+  mutate(DENS_2000s = POP_Total_IPUMS2000s/SUPERF_km2_IPUMS,
+         DENS_2010s = POP_Total_IPUMS2010s/SUPERF_km2_IPUMS) %>% 
+  select(PAYS,DENS_2000s,DENS_2010s) %>% 
+  arrange(desc(DENS_2010s),desc(DENS_2000s))
+```
+
+\[Résultat\] Pour les données de recensement diffusées par IPUMS International, **l'Ile Maurice - suivi du Rwanda, du Malawi et de l'Ouganda - est le pays avec la plus forte densité de population** du périmètre d'étude, avec environ 620 habitants par km2 dans la décennie 2010 (= recensement 2011).
+
+```{r visu_Ex3.1, cache=T,comment=F}
+## Visulation du tableau (trié par la densité dans la décennie 2010 puis 2000)
+datatable(Exo3_1)
+```
+
+### 3.2. "Quel pays a le taux d'urbanisation le plus élevé dans les années 2010 ?" (IPUMS & E-Geopolis)
+
+\[Analyse\] Le **calcul du taux d'urbanisation** repose ici sur **deux sources de données** pour la seule décennie 2010 : sur les **populations urbaines fournies par IPUMS** (mais celles-ci ne sont pas harmonisées, elles correspondent aux définitions nationales) **et produites par le projet e-geopolis** (harmonisées, *cf.* urbain = zones agglomérées de 10 000 habitants et plus).
+
+```{r ex3.2, cache=T,comment=F}
+## Double calcul du taux d'urbanisation par pays avec les données IPUMS 2010 et GEOPOLIS 2010
+Exo3_2 <- JdD1_Af_France_2000s_2010s %>% 
+  mutate(TxURB_IPUMS_2010s = (POP_Urban_IPUMS2010s*100)/(POP_Total_IPUMS2010s),
+         TxURB_Geopolis_2010s = (POP_Urban_GEOPOLIS2010s*100)/(POP_Urban_GEOPOLIS2010s+POP_Rural_GEOPOLIS2010s)) %>% 
+  select(PAYS,TxURB_IPUMS_2010s,TxURB_Geopolis_2010s) %>% 
+  arrange(desc(TxURB_Geopolis_2010s),desc(TxURB_IPUMS_2010s))
+```
+
+\[Résultat\] Sur la base principale des données GEOPOLIS pour la décennie 2010, **l'Egypte est le pays avec le taux d'urbanisation le plus élevé** (environ 93% de la population totale). Lorsque cela est possible, la comparaison des données IPUMS et GEOPOLIS montre bien l'irrégularité des premières, tantôt supérieures ou inférieures aux secondes.
+
+```{r visu_Ex3.2, cache=T,comment=F}
+## Visulation du tableau (trié par le taux d'urbanisation GEOPOLIS des années 2010)
+datatable(Exo3_2)
+```
+
+### 3.3. "Quels pays ont un sex-ratio supérieur à la moyenne mondiale dans les années 2000 ou 2010 ?" (IPUMS)
+
+\[Analyse\] Pour les décennies 2000 et 2010, selon les pays disponibles, l'analyse consiste à **calculer le sex-ratio (*cf.* poids des hommes / poids des femmes) de chaque pays**, en sachant qu'à l'échelle mondiale il est d'environ 102 hommes pour 100 femmes.
+
+```{r ex3.3, cache=T,comment=F}
+## Double calcul du sex-ratio pour les décennies 2000s et 2010s
+Exo3_3 <- JdD1_Af_France_2000s_2010s %>% 
+  mutate(SexRatio_2000s = (SEXE_Hom_IPUMS2000s/SEXE_Fem_IPUMS2000s)*100,
+         SexRatio_2010s = (SEXE_Hom_IPUMS2010s/SEXE_Fem_IPUMS2010s)*100) %>% 
+  select(PAYS,SexRatio_2000s,SexRatio_2010s) %>% 
+  arrange(desc(SexRatio_2000s),desc(SexRatio_2010s))
+```
+
+\[Résultat\] **Dans la décennie 2000, seuls l'Egypte, le Sud Soudan, le Soudan et l'Ethiopie ont un sex-ratio supérieur à la moyenne mondiale de 102 hommes pour 100 femmes**. Dans la décennie 2010, ces quatres pays n'ont pas eu de recensement, et aucun autre pays du périmètre d'étude n'a un nombre d'hommes sensiblement supérieur à celui des femmes. A titre indicatif, le sex-ratio de la France n'est pas le plus "féminin" puisque trois pays ont des résultats encore inférieurs : la Guinée, le Zimbabwe et le Rwanda.
+
+```{r visu_Ex3.3, cache=T,comment=F}
+## Visulation du tableau (trié par le sex-ratio des années 2000)
+datatable(Exo3_3)
+```
+
+### 3.4. "Quels pays ont la structure de population la plus jeune dans les années 2010 ?" (IPUMS)
+
+\[Analyse\] Pour les pays qui disposent de données de recensement dans les années 2010, une analyse possible consiste ici à **calculer la part de toutes les catégories d'âge dans la population générale** afin d'évaluer de manière relative le poids des catégories d'âge "jeunes" (0-14 ans, 15-29 ans).
+
+```{r ex3.4, cache=T,comment=F}
+## Calcul du poids des différentes catégories d'âge dans la population totale par pays (années 2010)
+Exo3_4 <- JdD1_Af_France_2000s_2010s %>% 
+  filter(POP_Total_IPUMS2010s >= 0) %>% ## retrait des NA
+  mutate(PRCT_0014_IPUMS2010s = (AGE_0014_IPUMS2010s*100)/POP_Total_IPUMS2010s,
+         PRCT_1529_IPUMS2010s = (AGE_1529_IPUMS2010s*100)/POP_Total_IPUMS2010s,
+         PRCT_3044_IPUMS2010s = (AGE_3044_IPUMS2010s*100)/POP_Total_IPUMS2010s,
+         PRCT_4559_IPUMS2010s = (AGE_4559_IPUMS2010s*100)/POP_Total_IPUMS2010s,
+         PRCT_6074_IPUMS2010s = (AGE_6074_IPUMS2010s*100)/POP_Total_IPUMS2010s,
+         PRCT_75pl_IPUMS2010s = (AGE_75pl_IPUMS2010s*100)/POP_Total_IPUMS2010s) %>% 
+    select(PAYS,PRCT_0014_IPUMS2010s,PRCT_1529_IPUMS2010s,PRCT_3044_IPUMS2010s,PRCT_4559_IPUMS2010s,PRCT_6074_IPUMS2010s,PRCT_75pl_IPUMS2010s) %>% 
+  gather(key = "AGE",value="POPULATION",2:7) %>%
+  mutate(AGE=substr(AGE,6,9)) %>% 
+  arrange(AGE,PAYS)
+```
+
+\[Résultat\] Dans les années 2010 (*cf.* pays avec recensement), **le Bénin, l'Uganda et le Zimbabwe sont les trois pays avec la structure de population la plus jeune** avec environ 74% de la population qui a moins de 30 ans. Inversement, la France est le pays avec la structure de population la plus âgée mais comparable à celle de l'Ile Maurice.
+
+```{r visu_Ex3., cache=T,comment=F}
+## Visualisation en graphique empilé à 100%
+ggplot(Exo3_4, aes(x=PAYS,y=POPULATION,fill=AGE)) +
+  theme_bw()+
+  ggtitle("Structures de population par âge dans les années 2010 (pays africains IPUMS + France)")+
+  geom_bar(stat="identity") +
+  scale_fill_manual(values=c("yellow2","orange","orange3","red1","red3","brown")) +
+  theme(legend.title = element_text(face = "bold",size="8"),
+        legend.text = element_text(size="8"),
+        plot.title = element_text(face = "bold",size="10"),
+        axis.text = element_text(face = "bold",size="6"),
+        axis.text.x = element_text(angle=45,hjust=1),
+        axis.title.x = element_text(size="8"), 
+        axis.title.y = element_text(size="9"),
+        plot.caption = element_text(size="7",face = "italic"))+
+  labs(x = "Pays africains et France (avec un recensement dans les années 2010)", y = "Part des catégories d'âge dans la population totale",
+       fill = "Catégories d'âge",
+       caption = "Source : IPUMS International (Offices statistiques nationaux des pays étudiés), décennie 2010")
+```
+
+### **Données migratoires de flux** (Bénin, RP 2013)
+
+Les exercices suivants reposent sur le **tableau des migrations au cours de la vie entre les régions du Bénin** produit dans la partie 2.2.
+
+```{r Jd2_rds, cache=T,comment=F}
+RPBenin2013_IPUMS_flux_vf <- readRDS("Data/Data_analyse/EECIST23_Recensement_TD_IPUMS_partie3_JdD2_Benin2013.RDS")
+```
+
+### 3.5. "Quel département du Bénin est le plus peuplé ?" (IPUMS)
+
+\[Analyse\] Même si l'étude repose sur un tableau de flux (migrations au cours de la vie), il est tout à fait possible de l'utiliser pour déterminer le poids démographique "structurel" des régions du Bénin à partir uniquement de la **variable "Département de résidence"**.
+
+```{r ex3.5, cache=T,comment=F}
+## Traitement principal : agrégation de la variable "POP_Total_IPUMS2010s" par la variable "DEP_RESIDENCE"
+Exo3_5 <- RPBenin2013_IPUMS_flux_vf %>% 
+  select(DEP_RESIDENCE,POP_Total_IPUMS2010s) %>% 
+  group_by(DEP_RESIDENCE) %>% 
+  summarise_all(sum) %>% 
+  arrange(desc(POP_Total_IPUMS2010s)) ## tri par ordre décroissant
+```
+
+\[Résultat\] En 2013, **le département de résidence le plus peuplé au Bénin était le département "Atlantique"** avec 1 417 420 habitants recensés. Ce département est principalement composé des communes de Abomey-Calavi (la plus peuplée : 656 358 habs), de Allada (préfecture) et de Ouidah (162 034 habs).
+
+```{r visu_Ex3.5, cache=T,comment=F}
+## Visualisation du tableau agrégé en ordre décroissant
+datatable(Exo3_5)
+```
+
+### 3.6. "Quel département du Bénin a le poids des personnes néés à l'étranger le plus important ?" (IPUMS)
+
+\[Analyse\] En s'appuyant sur le calcul des populations régionales réalisé dans l'exercice 3.5, le traitement principal consiste à **sélectionner les seuls flux des personnes néés à l'étranger puis à évaluer leur poids dans chaque région**.
+
+```{r ex3.6, cache=T,comment=F}
+## Sélection principale des flux des personnes néés à l'étranger
+Exo3_6 <- RPBenin2013_IPUMS_flux_vf %>% 
+  filter(DEP_NAISSANCE %in% c("Born Abroad")) %>% 
+  select(DEP_RESIDENCE,POP_Total_IPUMS2010s) %>% 
+  rename(POP_NEtr_IPUMS2010s=POP_Total_IPUMS2010s)
+## Appariement des tableaux "Exo3_6" (Naissances à l'étranger par région de résidence) et "Exo3_5" (Population totale des régions de résidence)
+Exo3_6b <-  merge(x = Exo3_6, y = Exo3_5, by.x = "DEP_RESIDENCE", by.y = "DEP_RESIDENCE")
+## Calcul du pourcentage de personnes néés à l'étranger et classement des régions
+Exo3_6b <- Exo3_6b %>% 
+  mutate(Prct_NEtr_IPUMS2010s = (POP_NEtr_IPUMS2010s*100)/POP_Total_IPUMS2010s) %>% 
+  select(DEP_RESIDENCE,Prct_NEtr_IPUMS2010s) %>% 
+  arrange(desc(Prct_NEtr_IPUMS2010s)) ## tri par ordre décroissant
+```
+
+\[Résultat\] En 2013, **le pourcentage de personnes néés à l'étranger était le plus important dans le département "Littoral"** avec 10,7% de la population résidente. Ce département est celui de la commune unique de Cotonou, capitale du Bénin.
+
+```{r visu_Ex3.6, cache=T,comment=F}
+## Visualisation du tableau en ordre décroissant
+datatable(Exo3_6b)
+```
+
+### 3.7. "Quels départements du Bénin ont un solde migratoire au cours de la vie positif (et inversement) ?" (IPUMS)
+
+\[Analyse\] Après retrait des personnes néés à l'étranger (*cf.* absence d'informations sur les départs vers l'étranger), le traitement principal consiste à **évaluer le nombre total d'arrivées et de départs par région, ainsi que le différentiel entre les deux**.
+
+```{r ex3.7, cache=T,comment=F}
+## Calcul des arrivées par région (avec retrait des personnes néés à l'étranger et des non changements de région)
+Exo3_7_arr <- RPBenin2013_IPUMS_flux_vf %>% 
+  filter(!DEP_NAISSANCE %in% c("Born Abroad") & (!DEP_NAISSANCE == DEP_RESIDENCE)) %>% 
+  select(DEP_RESIDENCE,POP_Total_IPUMS2010s) %>% 
+  rename(POP_ARR_IPUMS2010s=POP_Total_IPUMS2010s,
+         DEPARTEMENT=DEP_RESIDENCE) %>% 
+  group_by(DEPARTEMENT) %>% 
+  summarise_all(sum)
+
+## Calcul des départs par région (avec retrait des personnes néés à l'étranger et des non changements de région)
+Exo3_7_dep <- RPBenin2013_IPUMS_flux_vf %>% 
+  filter(!DEP_NAISSANCE %in% c("Born Abroad") & (!DEP_NAISSANCE == DEP_RESIDENCE)) %>% 
+  select(DEP_NAISSANCE,POP_Total_IPUMS2010s) %>% 
+  rename(POP_DEP_IPUMS2010s=POP_Total_IPUMS2010s,
+         DEPARTEMENT=DEP_NAISSANCE) %>% 
+  group_by(DEPARTEMENT) %>% 
+  summarise_all(sum)
+
+## Appariement des tableaux ("Exo3_7_arr" et "Exo3_7_dep") et calcul du solde migratoire
+Exo3_7 <-  merge(x = Exo3_7_arr, y = Exo3_7_dep, by.x = "DEPARTEMENT", by.y = "DEPARTEMENT")
+Exo3_7 <- Exo3_7 %>% 
+  mutate (SMNaissance_IPUMS2010s = POP_ARR_IPUMS2010s-POP_DEP_IPUMS2010s)
+```
+
+\[Résultat\] En 2013, **seuls trois départements avaient un solde migratoire au cours de la vie positif (Atlantique, Borgou, Oueme)** en raison principalement de plus fortes arrivées.
+
+```{r visu_Ex3.7, cache=T,comment=F}
+## Visualisation du solde migratoire au cours de la vie en tableau
+Exo3_7_visu1 <- Exo3_7 %>% 
+  select(DEPARTEMENT,SMNaissance_IPUMS2010s) %>% 
+  arrange(desc(SMNaissance_IPUMS2010s))
+ datatable(Exo3_7_visu1)
+
+## Visualisation en graphique des arrivées et départs au cours de la vie
+Exo3_7_visu2 <- Exo3_7 %>% 
+  select(-SMNaissance_IPUMS2010s) %>% 
+  gather(key = "ARRDEP",value="VOLUME",2:3) %>% 
+  mutate(ARRDEP = substr(ARRDEP,5,7),
+         VOLUME = case_when(ARRDEP %in% c("DEP") ~ VOLUME*-1, ARRDEP %in% c("ARR") ~ VOLUME),
+         VOLUME = VOLUME/1000)
+ggplot(Exo3_7_visu2, aes(x=DEPARTEMENT,y=VOLUME,fill=ARRDEP)) +
+  theme_bw()+
+  ggtitle("Arrivées et départs au cours de la vie dans les départements du Bénin (recensement 2013)")+
+  geom_bar(stat="identity")+
+  scale_fill_manual(values=c("red","blue")) +
+  theme(legend.title = element_text(face = "bold",size="8"),
+        legend.text = element_text(size="8"),
+        plot.title = element_text(face = "bold",size="10"),
+        axis.text = element_text(face = "bold",size="7"),
+        axis.text.x = element_text(angle=45,hjust=1),
+        axis.title.x = element_text(size="8"), axis.title.y = element_text(size="9"),
+        plot.caption = element_text(size="7",face = "italic"))+
+  labs(x = "Départements du Bénin", y = "Volume d'arrivées et de départs au cours de la vie (en milliers)",
+       fill = "Variations migratoires",
+       caption = "Source : IPUMS International (National Institute for Statistics and Economic Analysis, Benin, recensement 2013)")
+```
+
+### 3.8. "Quelles populations (âge, sexe) contribuent le plus au solde migratoire positif au cours de la vie du département"Atlantique" ?" (IPUMS)
+
+\[Analyse\] Après retrait des personnes néés à l'étranger (*cf.* absence d'informations sur les départs vers l'étranger) et sélection du seul département "Atlantique" (pour les arrivées ou les départs), le traitement principal consiste à **évaluer le nombre total d'arrivées et de départs pour les hommes/femmes et les catégories d'âge, ainsi que les différentiels entre les deux**.
+
+```{r ex3.8, cache=T,comment=F}
+## Calcul des arrivées pour la région Atlantique selon le sexe et l'âge (avec retrait des personnes néés à l'étranger)
+Exo3_8_arr <- RPBenin2013_IPUMS_flux_vf %>% 
+  filter(!DEP_NAISSANCE %in% c("Born Abroad","Atlantique") & DEP_RESIDENCE %in% c("Atlantique")) %>% 
+  select(DEP_RESIDENCE,SEXE_Hom_IPUMS,SEXE_Fem_IPUMS,
+         AGE_0014_IPUMS,AGE_1529_IPUMS,AGE_3044_IPUMS,AGE_4559_IPUMS,AGE_6074_IPUMS,AGE_75pl_IPUMS) %>% 
+  rename(POP_ARR_Hom_IPUMS=SEXE_Hom_IPUMS,
+         POP_ARR_Fem_IPUMS=SEXE_Fem_IPUMS,
+         POP_ARR_0014_IPUMS=AGE_0014_IPUMS,
+         POP_ARR_1529_IPUMS=AGE_1529_IPUMS,
+         POP_ARR_3044_IPUMS=AGE_3044_IPUMS,
+         POP_ARR_4559_IPUMS=AGE_4559_IPUMS,
+         POP_ARR_6074_IPUMS=AGE_6074_IPUMS,
+         POP_ARR_75pl_IPUMS=AGE_75pl_IPUMS,
+         DEPARTEMENT=DEP_RESIDENCE) %>% 
+  group_by(DEPARTEMENT) %>% 
+  summarise_all(sum)
+
+## Calcul des départs de la région Atlantique selon le sexe et l'âge vers d'autres régions du Bénin
+Exo3_8_dep <- RPBenin2013_IPUMS_flux_vf %>% 
+  filter(DEP_NAISSANCE %in% c("Atlantique") & !DEP_RESIDENCE %in% c("Atlantique")) %>% 
+  select(DEP_NAISSANCE,SEXE_Hom_IPUMS,SEXE_Fem_IPUMS,
+         AGE_0014_IPUMS,AGE_1529_IPUMS,AGE_3044_IPUMS,AGE_4559_IPUMS,AGE_6074_IPUMS,AGE_75pl_IPUMS) %>% 
+  rename(POP_DEP_Hom_IPUMS=SEXE_Hom_IPUMS,
+         POP_DEP_Fem_IPUMS=SEXE_Fem_IPUMS,
+         POP_DEP_0014_IPUMS=AGE_0014_IPUMS,
+         POP_DEP_1529_IPUMS=AGE_1529_IPUMS,
+         POP_DEP_3044_IPUMS=AGE_3044_IPUMS,
+         POP_DEP_4559_IPUMS=AGE_4559_IPUMS,
+         POP_DEP_6074_IPUMS=AGE_6074_IPUMS,
+         POP_DEP_75pl_IPUMS=AGE_75pl_IPUMS,
+         DEPARTEMENT=DEP_NAISSANCE) %>% 
+  group_by(DEPARTEMENT) %>% 
+  summarise_all(sum)
+
+## Appariement des tableaux ("Exo3_8_arr" et "Exo3_8_dep") et calcul du solde migratoire
+Exo3_8 <-  merge(x = Exo3_8_arr, y = Exo3_8_dep, by.x = "DEPARTEMENT", by.y = "DEPARTEMENT")
+Exo3_8 <- Exo3_8 %>% 
+  mutate(SMNaissance_Homm_IPUMS2010s = POP_ARR_Hom_IPUMS-POP_DEP_Hom_IPUMS,
+         SMNaissance_Femm_IPUMS2010s = POP_ARR_Fem_IPUMS-POP_DEP_Fem_IPUMS,
+         SMNaissance_0014_IPUMS2010s = POP_ARR_0014_IPUMS-POP_DEP_0014_IPUMS,
+         SMNaissance_1529_IPUMS2010s = POP_ARR_1529_IPUMS-POP_DEP_1529_IPUMS,
+         SMNaissance_3044_IPUMS2010s = POP_ARR_3044_IPUMS-POP_DEP_3044_IPUMS,
+         SMNaissance_4559_IPUMS2010s = POP_ARR_4559_IPUMS-POP_DEP_4559_IPUMS,
+         SMNaissance_6074_IPUMS2010s = POP_ARR_6074_IPUMS-POP_DEP_6074_IPUMS,
+         SMNaissance_75pl_IPUMS2010s = POP_ARR_75pl_IPUMS-POP_DEP_75pl_IPUMS)         
+```
+
+\[Résultat\] En 2013, **le solde migratoire au cours de la vie très positif du département Atlantique est dû à peu près à part égale aux hommes et aux femmes.** Par ailleurs, les soldes migratoires positifs sont les plus élevés pour les catégories d'âge "jeunes" (0-14 ans et 15-29 ans) - conformément à la structure de population de la région et du pays (*cf.* exercice 3.4) - ; il est aussi à noter que le département "Atlantique" a **des soldes migratoires positifs pour toutes les catégories d'âge, y compris les plus âgées**.
+
+```{r visu_Ex3.8, cache=T,comment=F}
+## Visualisation des soldes migratoires en tableau
+Exo3_8_visu <- Exo3_8 %>% 
+  select(DEPARTEMENT,SMNaissance_Homm_IPUMS2010s:SMNaissance_75pl_IPUMS2010s) %>% 
+  gather(key = "Catégories_population",value="SMNaissance",2:9) %>% 
+  mutate(Catégories_population = substr(Catégories_population,13,16))
+datatable(Exo3_8_visu)
+```
+
+##  {.unnumbered}
